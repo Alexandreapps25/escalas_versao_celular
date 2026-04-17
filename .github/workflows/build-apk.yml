@@ -35,7 +35,7 @@ jobs:
       - name: Prepare web assets
         run: |
           mkdir -p www
-                    cp "escalas_versao_celular.html" www/index.html
+          cp "escalas_versao_celular.html" www/index.html
 
       - name: Init and add Android platform
         run: |
@@ -43,23 +43,21 @@ jobs:
           npx cap add android
           npx cap sync android
 
-                - name: Set app icon
-                        run: |
-                                  mkdir -p android/app/src/main/res/mipmap-hdpi
-                                            mkdir -p android/app/src/main/res/mipmap-mdpi
-                                                      mkdir -p android/app/src/main/res/mipmap-xhdpi
-                                                                mkdir -p android/app/src/main/res/mipmap-xxhdpi
-                                                                          mkdir -p android/app/src/main/res/mipmap-xxxhdpi
-                                                                                    convert icon.png -resize 72x72 android/app/src/main/res/mipmap-hdpi/ic_launcher.png
-                                                                                              convert icon.png -resize 48x48 android/app/src/main/res/mipmap-mdpi/ic_launcher.png
-                                                                                                        convert icon.png -resize 96x96 android/app/src/main/res/mipmap-xhdpi/ic_launcher.png
-                                                                                                                  convert icon.png -resize 144x144 android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png
-                                                                                                                            convert icon.png -resize 192x192 android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
-                                                                                                                                      cp android/app/src/main/res/mipmap-hdpi/ic_launcher.png android/app/src/main/res/mipmap-hdpi/ic_launcher_round.png
-                                                                                                                                                cp android/app/src/main/res/mipmap-mdpi/ic_launcher.png android/app/src/main/res/mipmap-mdpi/ic_launcher_round.png
-                                                                                                                                                          cp android/app/src/main/res/mipmap-xhdpi/ic_launcher.png android/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png
-                                                                                                                                                                    cp android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png
-                                                                                                                                                                              cp android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png
+      - name: Set app icon
+        run: |
+          pip install Pillow -q
+          python3 -c "
+          from PIL import Image
+          import os
+          sizes = {'mipmap-mdpi': 48, 'mipmap-hdpi': 72, 'mipmap-xhdpi': 96, 'mipmap-xxhdpi': 144, 'mipmap-xxxhdpi': 192}
+          img = Image.open('icon.png').convert('RGBA')
+          for folder, size in sizes.items():
+              path = 'android/app/src/main/res/' + folder
+              os.makedirs(path, exist_ok=True)
+              resized = img.resize((size, size), Image.LANCZOS)
+              resized.save(path + '/ic_launcher.png')
+              resized.save(path + '/ic_launcher_round.png')
+          "
 
       - name: Build Debug APK
         run: |
