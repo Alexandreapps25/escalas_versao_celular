@@ -35,7 +35,7 @@ jobs:
       - name: Prepare web assets
         run: |
           mkdir -p www
-          cp "escalas_versao_celular (1).html" www/index.html
+                    cp "escalas_versao_celular.html" www/index.html
 
       - name: Init and add Android platform
         run: |
