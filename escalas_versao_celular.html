@@ -732,6 +732,20 @@
     textarea#avisoTexto::placeholder { color:var(--ouro); opacity:0.5; }
 
 
+    /* ── BOTÃO WA MEMBRO ── */
+    .btn-wa-membro {
+      background: #25D366; color: #fff; border: none;
+      border-radius: 8px; padding: 5px 9px; font-size: 14px;
+      cursor: pointer; font-family: 'Nunito', sans-serif;
+      font-weight: 800; text-decoration: none; display: inline-flex;
+      align-items: center; margin-right: 4px;
+    }
+    .btn-wa-vazio {
+      background: var(--ouro-suave); color: var(--ouro);
+      border: 1.5px solid var(--ouro-borda); font-size: 11px;
+    }
+    .nome-texto { flex: 1; }
+
     /* ── MODAL EDIÇÃO RÁPIDA ── */
     .modal-edicao-overlay {
       display:none; position:fixed; inset:0;
@@ -919,6 +933,7 @@
         Compartilhar no WhatsApp
       </button>
       <button class="btn-copiar" onclick="copiarEscala()">📋 Copiar Escala</button>
+      <button class="btn-copiar" onclick="avisarEscalados()" style="background:linear-gradient(135deg,#25D366,#128C7E);color:#fff;border-color:#25D366;">📲 Avisar Escalados</button>
       <button class="btn-copiar" style="color:#888;border-color:#ccc;" onclick="resetar()">🔄 Nova Escala</button>
     </div>
 
@@ -930,7 +945,12 @@
       <div class="card-title">✨ Adicionar Membro</div>
       <div class="input-row">
         <input type="text" id="novoNome" placeholder="Ex: PR JOÃO ou DIAC ANA" maxlength="40"
-          onkeydown="if(event.key==='Enter') adicionarNome()" />
+          onkeydown="if(event.key==='Enter') document.getElementById('novoTel').focus()" />
+      </div>
+      <div class="input-row" style="margin-top:8px;">
+        <input type="tel" id="novoTel" placeholder="WhatsApp: 11999990000" maxlength="15" inputmode="numeric"
+          onkeydown="if(event.key==='Enter') adicionarNome()"
+          style="flex:1;padding:11px 14px;background:var(--ouro-suave);border:1.5px solid var(--ouro-borda);border-radius:var(--radius-sm);font-size:15px;font-family:'Nunito',sans-serif;font-weight:700;color:var(--texto);" />
         <button class="btn-add" onclick="adicionarNome()">+</button>
       </div>
       <p style="font-size:12px;color:var(--ouro);font-weight:600;line-height:1.5;">
@@ -1043,6 +1063,7 @@
   const NOMES_PADRAO = ["AP MALU","BPO ALEXANDRE","BPA FABIANA","PR JARBAS","PRA LUANA","PRA MEYRE","EV JOÃO PAULO","EV RAFAEL","MISS VAL","DIAC ROSE","DIAC MAX","DIAC ENILDA"];
   const STORAGE_NOMES = 'iaosorn_nomes_v2';
   const STORAGE_CONT = 'iaosorn_contadores_v1';
+  const STORAGE_TELS = 'iaosorn_telefones_v1';
   const STORAGE_PALAVRA = 'iaosorn_palavra_idx';
   const versiculos = [
     {t:"O Senhor é o meu pastor; nada me faltará.", r:"Salmo 23:1"},
@@ -1099,6 +1120,10 @@
     return [...NOMES_PADRAO];
   }
   function salvarNomes(l) { localStorage.setItem(STORAGE_NOMES, JSON.stringify(l)); }
+  function getTelefones() { try { return JSON.parse(localStorage.getItem(STORAGE_TELS)||'{}'); } catch(e){ return {}; } }
+  function salvarTelefones(t) { try { localStorage.setItem(STORAGE_TELS, JSON.stringify(t)); } catch(e){} }
+  function formatarTel(t) { return (t||'').replace(/\D/g,''); }
+  function linkWA(tel, msg) { const n='55'+formatarTel(tel); return 'https://wa.me/'+n+(msg?'?text='+encodeURIComponent(msg):''); }
 
   // ── CONTADORES ──
   function getContadores() {
@@ -1298,6 +1323,62 @@
     window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank');
   }
 
+  function avisarEscalados() {
+    // Coleta todos os nomes que aparecem na escala gerada
+    const tels = getTelefones();
+    const nomes = getNomes();
+    // Pega os selects visíveis com valor preenchido
+    const selecionados = [];
+    document.querySelectorAll('#tabelaEscala select, #resultadoEscala select').forEach(sel => {
+      if (sel.value && sel.value.trim()) selecionados.push(sel.value.trim());
+    });
+    // Também varre o texto renderizado para nomes conhecidos
+    const textoEscala = (document.getElementById('resultadoEscala')||{}).innerText || '';
+    nomes.forEach(n => { if (textoEscala.includes(n) && !selecionados.includes(n)) selecionados.push(n); });
+
+    const comTel = selecionados.filter(n => tels[n]);
+    const semTel = selecionados.filter(n => !tels[n]);
+
+    if (!selecionados.length) { mostrarToast('⚠️ Gere a escala primeiro.'); return; }
+
+    // Abre modal de aviso
+    const msg = gerarMsg ? gerarMsg() : '';
+    const msgEnc = encodeURIComponent('Olá! Você está na escala. 🙏\n\n' + msg);
+
+    let html = '<div style="padding:16px;font-family:Nunito,sans-serif;">';
+    html += '<div style="font-size:15px;font-weight:900;color:var(--ouro);margin-bottom:12px;">📲 Avisar Escalados</div>';
+    if (comTel.length) {
+      html += '<div style="font-size:12px;color:var(--texto-sub);margin-bottom:8px;font-weight:700;">Toque para abrir o WhatsApp:</div>';
+      comTel.forEach(n => {
+        const tel = tels[n];
+        html += '<a href="'+linkWA(tel, 'Olá '+n.split(' ').slice(1).join(' ')+'! Você está na escala da IAOSORN. 🙏\n\n'+msg)+'" target="_blank" '
+          + 'style="display:flex;align-items:center;gap:10px;background:#25D366;color:#fff;border-radius:10px;padding:10px 14px;margin-bottom:8px;text-decoration:none;font-weight:800;font-size:14px;">'
+          + '📲 ' + n + '</a>';
+      });
+    }
+    if (semTel.length) {
+      html += '<div style="font-size:12px;color:var(--ouro);margin-top:10px;font-weight:700;">⚠️ Sem WhatsApp cadastrado:</div>';
+      semTel.forEach(n => { html += '<div style="font-size:13px;color:var(--texto-sub);padding:4px 0;">• '+n+'</div>'; });
+      html += '<button onclick="mudarTela(\'nomes\',document.querySelectorAll(\'.tab-btn\')[1])" style="margin-top:8px;background:var(--ouro-suave);border:1.5px solid var(--ouro-borda);color:var(--ouro);border-radius:8px;padding:8px 14px;font-size:12px;font-weight:800;cursor:pointer;font-family:Nunito,sans-serif;">➕ Cadastrar telefones</button>';
+    }
+    html += '<button onclick="document.getElementById(\'modalAvisar\').style.display=\'none\'" style="margin-top:14px;width:100%;background:#EDE0C8;border:none;border-radius:50px;padding:12px;font-size:14px;font-weight:800;cursor:pointer;font-family:Nunito,sans-serif;">Fechar</button>';
+    html += '</div>';
+
+    let modal = document.getElementById('modalAvisar');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = 'modalAvisar';
+      modal.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:9999;align-items:center;justify-content:center;padding:20px;';
+      document.body.appendChild(modal);
+    }
+    const box = document.createElement('div');
+    box.style.cssText = 'background:var(--cinza);border-radius:var(--radius);max-width:380px;width:100%;max-height:80vh;overflow-y:auto;border:2px solid var(--ouro-borda);box-shadow:var(--sombra-lg);';
+    box.innerHTML = html;
+    modal.innerHTML = '';
+    modal.appendChild(box);
+    modal.style.display = 'flex';
+  }
+
   function copiarEscala() {
     const msg = gerarMsg();
     navigator.clipboard.writeText(msg).then(()=>mostrarToast('📋 Escala copiada!')).catch(()=>{
@@ -1444,12 +1525,17 @@
     const c = document.getElementById('listaNomes');
     if (!todosNomes.length) { c.innerHTML='<div class="aviso-vazio">👤 Nenhum membro.<br>Adicione acima.</div>'; return; }
     if (!nomes.length) { c.innerHTML='<div class="aviso-vazio">🔍 Nenhum resultado para "'+busca+'".</div>'; return; }
+    const tels = getTelefones();
     c.innerHTML = nomes.map(nome=>{
-      const i = todosNomes.indexOf(nome); // índice real para remover
+      const i = todosNomes.indexOf(nome);
       const p=nome.split(' '), cargo=p.length>1?p[0]:'', resto=p.length>1?p.slice(1).join(' '):nome;
       const vezes = cont[nome] || 0;
       const badge_cont = vezes > 0 ? '<span class="contador-badge">'+vezes+'x</span>' : '';
-      return '<div class="nome-item">'+(cargo?'<span class="badge">'+cargo+'</span>':'')+'<span>'+resto+'</span>'+badge_cont+'<button class="btn-del" onclick="removerNome('+i+')">✕</button></div>';
+      const tel = tels[nome];
+      const btnWA = tel
+        ? '<a href="'+linkWA(tel,'Olá '+nome.split(' ').slice(1).join(' ')+'! Você está na escala. 🙏')+'" target="_blank" class="btn-wa-membro" title="WhatsApp">📲</a>'
+        : '<button class="btn-wa-membro btn-wa-vazio" onclick="editarTelefone(\''+nome.replace(/'/g,"\\'")+'\')" title="Adicionar WhatsApp">➕📱</button>';
+      return '<div class="nome-item">'+(cargo?'<span class="badge">'+cargo+'</span>':'')+'<span class="nome-texto">'+resto+'</span>'+badge_cont+btnWA+'<button class="btn-del" onclick="removerNome('+i+')">✕</button></div>';
     }).join('');
   }
 
@@ -1462,11 +1548,15 @@
 
   function adicionarNome() {
     const input=document.getElementById('novoNome');
+    const telInput=document.getElementById('novoTel');
     const nome=input.value.trim().toUpperCase();
+    const tel=formatarTel(telInput.value);
     if (!nome) { mostrarToast('⚠️ Digite um nome.'); return; }
     const nomes=getNomes();
     if (nomes.includes(nome)) { mostrarToast('⚠️ Já cadastrado.'); return; }
-    nomes.push(nome); salvarNomes(nomes); input.value='';
+    nomes.push(nome); salvarNomes(nomes);
+    if (tel) { const tels=getTelefones(); tels[nome]=tel; salvarTelefones(tels); }
+    input.value=''; telInput.value='';
     renderizarLista(); mostrarToast('✅ '+nome+' adicionado!');
   }
 
@@ -1474,7 +1564,20 @@
     const nomes=getNomes(), nome=nomes[i];
     if (!confirm('Remover "'+nome+'"?')) return;
     nomes.splice(i,1); salvarNomes(nomes);
+    const tels=getTelefones(); delete tels[nome]; salvarTelefones(tels);
     renderizarLista(); mostrarToast('🗑️ '+nome+' removido.');
+  }
+
+  function editarTelefone(nome) {
+    const tels=getTelefones();
+    const atual=tels[nome]||'';
+    const novo=prompt('WhatsApp de '+nome+' (só números, com DDD):', atual);
+    if (novo===null) return;
+    const n=formatarTel(novo);
+    if (n) { tels[nome]=n; } else { delete tels[nome]; }
+    salvarTelefones(tels);
+    renderizarLista();
+    mostrarToast(n ? '📱 Telefone salvo!' : '🗑️ Telefone removido.');
   }
 
   // ── PROGRESSO ──
