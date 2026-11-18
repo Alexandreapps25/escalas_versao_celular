@@ -1595,15 +1595,56 @@
   }
 
   function editarTelefone(nome) {
-    const tels=getTelefones();
-    const atual=tels[nome]||'';
-    const novo=prompt('WhatsApp de '+nome+' (só números, com DDD):', atual);
-    if (novo===null) return;
-    const n=formatarTel(novo);
-    if (n) { tels[nome]=n; } else { delete tels[nome]; }
+    const tels = getTelefones();
+    const atual = tels[nome] || '';
+    let modal = document.getElementById('modalTelefone');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = 'modalTelefone';
+      modal.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:9999;align-items:center;justify-content:center;padding:20px;';
+      modal.innerHTML = `
+        <div style="background:var(--cinza);border-radius:var(--radius);padding:24px 20px;width:100%;max-width:360px;border:2px solid var(--ouro-borda);box-shadow:var(--sombra-lg);">
+          <div style="font-size:15px;font-weight:900;color:var(--ouro);margin-bottom:4px;">📱 WhatsApp do Membro</div>
+          <div id="modalTelNome" style="font-size:12px;color:var(--texto-sub);margin-bottom:14px;font-weight:700;"></div>
+          <input type="tel" id="modalTelInput" inputmode="numeric" maxlength="15"
+            placeholder="Ex: 11999990000 (com DDD)"
+            style="width:100%;padding:11px 14px;background:var(--ouro-suave);border:1.5px solid var(--ouro-borda);border-radius:var(--radius-sm);font-size:15px;font-family:'Nunito',sans-serif;font-weight:700;color:var(--texto);box-sizing:border-box;" />
+          <div style="display:flex;gap:10px;margin-top:14px;">
+            <button onclick="salvarTelModal()" style="flex:1;background:linear-gradient(135deg,var(--ouro),var(--ouro-claro));color:var(--escuro);border:none;border-radius:50px;padding:13px;font-size:15px;font-weight:900;cursor:pointer;font-family:'Nunito',sans-serif;">💾 Salvar</button>
+            <button onclick="document.getElementById('modalTelefone').style.display='none'" style="flex:1;background:#EDE0C8;color:var(--texto-sub);border:none;border-radius:50px;padding:13px;font-size:15px;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;">Cancelar</button>
+          </div>
+          <button onclick="removerTelModal()" style="width:100%;margin-top:8px;background:transparent;border:1.5px solid #FFCDD2;color:#C62828;border-radius:50px;padding:10px;font-size:13px;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;">🗑️ Remover número</button>
+        </div>`;
+      document.body.appendChild(modal);
+    }
+    modal._nomeAtual = nome;
+    document.getElementById('modalTelNome').textContent = nome;
+    document.getElementById('modalTelInput').value = atual;
+    modal.style.display = 'flex';
+    setTimeout(() => document.getElementById('modalTelInput').focus(), 200);
+  }
+
+  function salvarTelModal() {
+    const modal = document.getElementById('modalTelefone');
+    const nome = modal._nomeAtual;
+    const n = formatarTel(document.getElementById('modalTelInput').value);
+    const tels = getTelefones();
+    if (n) { tels[nome] = n; } else { delete tels[nome]; }
     salvarTelefones(tels);
+    modal.style.display = 'none';
     renderizarLista();
     mostrarToast(n ? '📱 Telefone salvo!' : '🗑️ Telefone removido.');
+  }
+
+  function removerTelModal() {
+    const modal = document.getElementById('modalTelefone');
+    const nome = modal._nomeAtual;
+    const tels = getTelefones();
+    delete tels[nome];
+    salvarTelefones(tels);
+    modal.style.display = 'none';
+    renderizarLista();
+    mostrarToast('🗑️ Telefone removido.');
   }
 
   // ── PROGRESSO ──
