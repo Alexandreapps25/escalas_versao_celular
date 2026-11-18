@@ -745,6 +745,12 @@
       border: 1.5px solid var(--ouro-borda); font-size: 11px;
     }
     .nome-texto { flex: 1; }
+    .btn-editar-tel {
+      background: var(--ouro-suave); border: 1.5px solid var(--ouro-borda);
+      color: var(--ouro); border-radius: 8px; width: 34px; height: 34px;
+      font-size: 14px; cursor: pointer; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center; margin-right: 4px;
+    }
 
     /* ── MODAL EDIÇÃO RÁPIDA ── */
     .modal-edicao-overlay {
@@ -1497,10 +1503,18 @@
   function verificarSenha() {
     const inp = document.getElementById('senhaInput');
     const msg = document.getElementById('senhaMsg');
-    const senhaOk = (senhaDestino === 'pregacao') ? (inp.value === SENHA_PREGACAO) : (inp.value === SENHA_CORRETA);
+    const senhaOk = (inp.value === SENHA_CORRETA);
     if (senhaOk) {
       if (senhaDestino === 'nomes') nomesDesbloqueado = true;
       if (senhaDestino === 'pregacao') pregacaoDesbloqueado = true;
+      if (senhaDestino === '__excluir__') {
+        fecharModal();
+        if (_excluirIdx !== null) { removerNome(_excluirIdx); _excluirIdx = null; }
+        // restaura texto padrão
+        document.getElementById('modalSenha').querySelector('.modal-sub').textContent = 'Digite a senha para gerenciar membros';
+        senhaDestino = 'nomes';
+        return;
+      }
       fecharModal();
       if (btnPendente) mudarTela(senhaDestino, btnPendente);
     } else {
@@ -1535,7 +1549,8 @@
       const btnWA = tel
         ? '<a href="'+linkWA(tel,'Olá '+nome.split(' ').slice(1).join(' ')+'! Você está na escala. 🙏')+'" target="_blank" class="btn-wa-membro" title="WhatsApp">📲</a>'
         : '<button class="btn-wa-membro btn-wa-vazio" onclick="editarTelefone(\''+nome.replace(/'/g,"\\'")+'\')" title="Adicionar WhatsApp">➕📱</button>';
-      return '<div class="nome-item">'+(cargo?'<span class="badge">'+cargo+'</span>':'')+'<span class="nome-texto">'+resto+'</span>'+badge_cont+btnWA+'<button class="btn-del" onclick="removerNome('+i+')">✕</button></div>';
+      const nomeEsc = nome.replace(/'/g,"\\'");
+      return '<div class="nome-item">'+(cargo?'<span class="badge">'+cargo+'</span>':'')+'<span class="nome-texto">'+resto+'</span>'+badge_cont+btnWA+'<button class="btn-editar-tel" onclick="editarTelefone(\''+nomeEsc+'\')" title="Editar telefone">✏️</button><button class="btn-del" onclick="pedirSenhaParaExcluir('+i+')">🗑️</button></div>';
     }).join('');
   }
 
@@ -1560,9 +1575,20 @@
     renderizarLista(); mostrarToast('✅ '+nome+' adicionado!');
   }
 
+  let _excluirIdx = null;
+
+  function pedirSenhaParaExcluir(i) {
+    _excluirIdx = i;
+    const nomes = getNomes();
+    const nome = nomes[i];
+    // Reutiliza o modal de senha já existente
+    document.getElementById('modalSenha').querySelector('.modal-sub').textContent = 'Senha para excluir "'+nome+'"';
+    senhaDestino = '__excluir__';
+    abrirModal();
+  }
+
   function removerNome(i) {
     const nomes=getNomes(), nome=nomes[i];
-    if (!confirm('Remover "'+nome+'"?')) return;
     nomes.splice(i,1); salvarNomes(nomes);
     const tels=getTelefones(); delete tels[nome]; salvarTelefones(tels);
     renderizarLista(); mostrarToast('🗑️ '+nome+' removido.');
