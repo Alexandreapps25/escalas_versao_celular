@@ -1005,6 +1005,7 @@
     </div>
 
     <button class="btn-comp-preg" onclick="compartilharPregacao()">📲 Compartilhar no WhatsApp</button>
+    <button class="btn-comp-preg" onclick="avisarEscaladosPreg()" style="background:linear-gradient(135deg,#25D366,#128C7E);border-color:#25D366;">📲 Avisar Escalados</button>
     <button class="btn-editar-preg" onclick="abrirEditor()">✏️ Editar Escala deste Mês</button>
 
   </div>
@@ -1845,6 +1846,83 @@
     window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank');
   }
 
+
+  function getVersiculoPreg() {
+    const STORAGE_PREG_VERS = 'iaosorn_preg_vers_idx';
+    const saved = JSON.parse(localStorage.getItem(STORAGE_PREG_VERS) || '{"idx":0}');
+    const idx = saved.idx;
+    const proximo = (idx + 1) % versiculos.length;
+    localStorage.setItem(STORAGE_PREG_VERS, JSON.stringify({idx: proximo}));
+    return versiculos[idx];
+  }
+
+  function avisarEscaladosPreg() {
+    const escala = getEscalaMes(mesAtual, anoAtual);
+    const tels = getTelefones();
+    const mes = MESES_PT[mesAtual];
+    const itensComNome = escala.itens.filter(item => item.nome && item.nome.trim());
+
+    if (!itensComNome.length) { mostrarToast('⚠️ Nenhum escalado neste mês.'); return; }
+
+    const vers = getVersiculoPreg();
+    const versTexto = '"' + vers.t + '" — ' + vers.r;
+
+    const comTel = [];
+    const semTel = [];
+
+    itensComNome.forEach(item => {
+      const ddow = diaDaSemana(item.dia, mesAtual, anoAtual);
+      const dataStr = formatarDia(item.dia, mesAtual) + ' (' + ddow + ')';
+      const cargo = item.cargo ? item.cargo + ' ' : '';
+      const primeiroNome = item.nome.split(' ').slice(1).join(' ') || item.nome;
+      const msgPessoal =
+        'Olá, ' + primeiroNome + '! 🙌\n\n' +
+        'Você está escalado(a) para ' + cargo.toLowerCase().trim() + ' no dia ' + dataStr + ' de ' + mes + ' de ' + anoAtual + ' na IAOSORN.\n\n' +
+        '📖 ' + versTexto + '\n\n' +
+        'Que Deus te abençoe e unja sua ministração! 🙏';
+      if (tels[item.nome]) {
+        comTel.push({nome: item.nome, tel: tels[item.nome], msg: msgPessoal, dataStr});
+      } else {
+        semTel.push({nome: item.nome, dataStr});
+      }
+    });
+
+    let html = '<div style="padding:16px;font-family:Nunito,sans-serif;">';
+    html += '<div style="font-size:15px;font-weight:900;color:var(--ouro);margin-bottom:4px;">📲 Avisar Escalados — Pregação</div>';
+    html += '<div style="font-size:12px;color:var(--texto-sub);margin-bottom:12px;">' + mes.toUpperCase() + ' ' + anoAtual + '</div>';
+    if (comTel.length) {
+      html += '<div style="font-size:12px;color:var(--texto-sub);margin-bottom:8px;font-weight:700;">Toque para abrir o WhatsApp de cada um:</div>';
+      comTel.forEach(p => {
+        html += '<a href="' + linkWA(p.tel, p.msg) + '" target="_blank" '
+          + 'style="display:flex;align-items:center;justify-content:space-between;background:#25D366;color:#fff;border-radius:10px;padding:10px 14px;margin-bottom:8px;text-decoration:none;font-weight:800;font-size:13px;">'
+          + '<span>📲 ' + p.nome + '</span>'
+          + '<span style="font-size:11px;opacity:0.85;">' + p.dataStr + '</span>'
+          + '</a>';
+      });
+    }
+    if (semTel.length) {
+      html += '<div style="font-size:12px;color:var(--ouro);margin-top:10px;font-weight:700;">⚠️ Sem WhatsApp cadastrado:</div>';
+      semTel.forEach(p => { html += '<div style="font-size:13px;color:var(--texto-sub);padding:3px 0;">• ' + p.nome + ' <small>(' + p.dataStr + ')</small></div>'; });
+      html += '<button onclick="mudarTela(\'nomes\',document.querySelectorAll(\'.tab-btn\')[1])" style="margin-top:8px;background:var(--ouro-suave);border:1.5px solid var(--ouro-borda);color:var(--ouro);border-radius:8px;padding:8px 14px;font-size:12px;font-weight:800;cursor:pointer;font-family:Nunito,sans-serif;">➕ Cadastrar telefones</button>';
+    }
+    html += '<div style="margin-top:12px;background:rgba(0,0,0,0.3);border-radius:8px;padding:10px;font-size:11px;color:var(--ouro-brilho);font-style:italic;">📖 Versículo deste envio:<br>' + versTexto + '</div>';
+    html += '<button onclick="document.getElementById(\'modalAvisarPreg\').style.display=\'none\'" style="margin-top:14px;width:100%;background:#EDE0C8;border:none;border-radius:50px;padding:12px;font-size:14px;font-weight:800;cursor:pointer;font-family:Nunito,sans-serif;">Fechar</button>';
+    html += '</div>';
+
+    let modal = document.getElementById('modalAvisarPreg');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = 'modalAvisarPreg';
+      modal.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:9999;align-items:center;justify-content:center;padding:20px;';
+      document.body.appendChild(modal);
+    }
+    const box = document.createElement('div');
+    box.style.cssText = 'background:var(--cinza);border-radius:var(--radius);max-width:400px;width:100%;max-height:85vh;overflow-y:auto;border:2px solid var(--ouro-borda);box-shadow:var(--sombra-lg);';
+    box.innerHTML = html;
+    modal.innerHTML = '';
+    modal.appendChild(box);
+    modal.style.display = 'flex';
+  }
 
   // ── EDIÇÃO RÁPIDA DE ITEM ──
   let itemEdicaoIdx = null;
