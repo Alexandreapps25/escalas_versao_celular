@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0b0d10">
+<title>MusicKey PRO Studio — v2.0</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="MusicKey">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div class="app" id="app">
+  <header class="top">
+    <div class="brand"><b>MusicKey PRO Studio</b><small>v2.0 · <span id="songTitleTop">sem música</span></small></div>
+    <div class="row">
+      <span class="pill" id="netPill" title="Conexão"><i></i><span>Local</span></span>
+      <span class="pill" id="micPill"><i></i><span>Mic</span></span>
+    </div>
+  </header>
+
+  <!-- ============ TOM (detector de voz, acordes ao vivo, afinador) ============ -->
+  <section class="view active" id="v-tom">
+    <div class="tabs" id="tomTabs">
+      <button class="btn sm sel" data-sub="voz">Tom pela voz</button>
+      <button class="btn sm" data-sub="vivo">Acordes ao vivo</button>
+      <button class="btn sm" data-sub="afinador">Afinador</button>
+    </div>
+    <div class="grid2" data-subview="voz">
+      <div class="stack">
+        <div class="card stack" style="align-items:center">
+          <span class="label">Nota agora</span>
+          <div class="note-big"><b id="noteName">--</b><small id="noteOct"></small></div>
+          <div class="muted" id="freqText">Toque em "Ouvir voz" e cante</div>
+          <div style="width:100%"><div class="meter"><div class="mid"></div><div class="dot" id="centDot"></div></div>
+          <div class="legend"><span>−50</span><span id="centText">0 cents</span><span>+50</span></div></div>
+        </div>
+        <div class="card stack">
+          <div class="row between"><div><span class="label">Tom da música</span> <span class="badge" id="keyBadge">Aguardando</span></div><span class="keyname" id="keySym" style="color:var(--accent);font-size:22px"></span></div>
+          <div class="keyname" id="keyName">—</div>
+          <div class="bar"><div id="confBar"></div></div>
+          <div class="small" id="confText">Cante 2 ou 3 frases da música</div>
+          <div class="small muted" id="altText"></div>
+          <div class="row"><button class="btn sm" id="keyToSong" disabled>Usar na música aberta</button><button class="btn sm" id="keyToBand" disabled>Tocar com a banda</button></div>
+        </div>
+        <div class="card">
+          <div class="row"><span class="small muted">Ruído</span><div class="meter grow" style="height:8px"><div class="fill" id="vu"></div><div class="gate" id="gateMark"></div></div><span class="small muted" id="gateMode">Auto</span></div>
+          <details><summary class="small" style="padding:8px 0;cursor:pointer">Ajustar filtro de ruído</summary>
+            <label class="small" for="gateSlider">Rigor do filtro (padrão 2)</label><input id="gateSlider" type="range" min="1.5" max="5" step="0.5" value="2"></details>
+        </div>
+        <div class="row"><button class="btn big primary grow" id="btnVoice">Ouvir voz</button><button class="btn big icon" id="btnVoiceReset" aria-label="Limpar leitura"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg></button></div>
+      </div>
+      <div class="stack">
+        <div class="card"><span class="label">Sequências para tocar a música</span><div class="stack" id="progs" style="margin-top:10px"></div></div>
+        <div class="card"><span class="label">Campo harmônico</span><div class="chords" id="field" style="margin-top:10px"></div></div>
+      </div>
+    </div>
+    <div class="grid2" data-subview="vivo" hidden>
+      <div class="card stack">
+        <span class="label">Acorde tocado agora (experimental)</span>
+        <div class="nowchord"><b id="liveChord">—</b><span class="muted" id="liveCand"></span></div>
+        <div class="small muted">Funciona melhor com violão ou teclado perto do microfone. Não prevê acordes futuros.</div>
+        <div class="row"><button class="btn primary" id="btnLive">Ouvir acordes</button><button class="btn" id="btnLiveClear">Limpar</button><button class="btn" id="btnLiveToSong">Enviar para a música</button></div>
+      </div>
+      <div class="card"><span class="label">Histórico</span><div class="small" id="liveHist" style="margin-top:8px;line-height:1.9"></div></div>
+    </div>
+    <div class="grid2" data-subview="afinador" hidden>
+      <div class="card stack" style="align-items:center">
+        <div class="note-big"><b id="tunNote">--</b><small id="tunOct"></small></div>
+        <div class="muted" id="tunFreq">—</div>
+        <div style="width:100%"><div class="meter"><div class="mid"></div><div class="dot" id="tunDot"></div></div><div class="legend"><span>−50</span><span id="tunCents">0 cents</span><span>+50</span></div></div>
+        <div class="keyname" id="tunState" style="font-size:20px">—</div>
+        <button class="btn big primary" id="btnTuner" style="width:100%">Ligar afinador</button>
+      </div>
+      <div class="card stack">
+        <label class="field"><span>Instrumento</span><select id="tunInst"></select></label>
+        <label class="field"><span>Referência do Lá (Hz)</span><input type="number" id="tunA4" min="415" max="466" value="440"></label>
+        <div class="row" id="tunStrings"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ MÚSICA (editor, player, análise) ============ -->
+  <section class="view" id="v-musica">
+    <div class="card stack">
+      <div class="row">
+        <input type="text" id="sTitle" class="grow" placeholder="Título" style="flex:2;min-width:160px">
+        <input type="text" id="sArtist" class="grow" placeholder="Artista" style="min-width:120px">
+      </div>
+      <div class="row">
+        <label class="field"><span>Tom</span><input type="text" id="sKey" style="width:80px" placeholder="G"></label>
+        <label class="field"><span>Tom original</span><input type="text" id="sOrigKey" style="width:80px"></label>
+        <label class="field"><span>BPM</span><input type="number" id="sBpm" min="30" max="260"></label>
+        <label class="field"><span>Compasso</span><select id="sMeter"><option>4/4</option><option>3/4</option><option>2/4</option><option>6/8</option></select></label>
+        <label class="field"><span>Capo</span><input type="number" id="sCapo" min="0" max="11"></label>
+        <span class="grow"></span>
+        <button class="btn primary" id="btnSave">Salvar</button>
+      </div>
+    </div>
+    <div class="grid2">
+      <div class="card stack">
+        <div class="row between"><h2>Editor de cifra</h2><span class="small muted">[G]Letra · # Refrão</span></div>
+        <div class="row">
+          <button class="btn sm" id="trDown">− ½ tom</button><button class="btn sm" id="trUp">+ ½ tom</button>
+          <button class="btn sm" id="btnSimplify">Simplificar</button>
+          <button class="btn sm" id="btnConvert" title="Converte cifra com acordes em cima da letra">Converter cifra de site</button>
+          <button class="btn sm" id="btnImport">Importar</button><button class="btn sm" id="btnExport">Exportar</button>
+          <input type="file" id="fileImport" accept=".txt,.cho,.chopro,.chordpro,.json,text/plain" hidden>
+        </div>
+        <textarea id="sText" spellcheck="false" placeholder="# Estrofe&#10;[G]Quando o sol nascer&#10;[D]Uma nova luz virá"></textarea>
+        <div class="small" id="validateMsg"></div>
+        <label class="field"><span>Observações</span><input type="text" id="sNotes"></label>
+      </div>
+      <div class="card stack">
+        <div class="row between"><h2>Prévia</h2><div class="row"><label class="chk"><input type="checkbox" id="hideChords"> Ocultar cifras</label><label class="chk"><input type="checkbox" id="showCapo"> Formas com capo</label></div></div>
+        <div class="sheet" id="preview"></div>
+      </div>
+    </div>
+    <div class="card stack">
+      <div class="row between"><h2>Áudio da música</h2><span class="small muted" id="audioInfo">Nenhum arquivo</span></div>
+      <div class="row">
+        <button class="btn" id="btnLoadAudio">Abrir MP3 / WAV</button><input type="file" id="fileAudio" accept="audio/*,.mp3,.wav,.m4a,.ogg" hidden>
+        <button class="btn primary" id="btnAnalyze" disabled>Analisar acordes</button>
+        <button class="btn" id="btnCancelAn" hidden>Cancelar</button>
+        <span class="grow"></span>
+        <label class="chk"><input type="checkbox" id="followStage" checked> Palco segue o áudio</label>
+      </div>
+      <div class="stack" id="anProg" hidden><div class="progress"><div id="anBar"></div></div><div class="small muted" id="anMsg"></div></div>
+      <div class="nowchord"><b id="curChord">—</b><span id="nextChord"></span><span class="grow"></span><span class="muted small" id="anSummary"></span></div>
+      <div class="timeline" id="timeline"><div class="head" id="tlHead"></div></div>
+      <div class="row">
+        <button class="btn primary" id="plPlay">Tocar</button>
+        <button class="btn sm" id="plBack">−5 s</button><button class="btn sm" id="plFwd">+5 s</button>
+        <span class="small" id="plTime">0:00 / 0:00</span>
+        <span class="grow"></span>
+        <button class="btn sm" id="plA">A</button><button class="btn sm" id="plB">B</button><button class="btn sm" id="plAB">Repetir A-B</button>
+        <label class="field" style="width:120px"><span>Velocidade <b id="plRateTxt">100%</b></span><input type="range" id="plRate" min="0.5" max="1.25" step="0.05" value="1"></label>
+      </div>
+      <details><summary style="cursor:pointer;padding:6px 0">Revisar acordes detectados</summary>
+        <div class="row" style="margin:8px 0"><button class="btn sm" id="segSplit">Dividir no ponto atual</button><button class="btn sm" id="segToSong">Gerar cifra a partir dos acordes</button><span class="small muted">Trechos com listras têm baixa confiança.</span></div>
+        <div class="seglist" id="segList"></div>
+      </details>
+      <details><summary style="cursor:pointer;padding:6px 0">Marcar tempo das linhas da letra</summary>
+        <div class="small muted" style="margin:6px 0">Toque o áudio e aperte "Marcar" no começo de cada linha. Use espaço no PC.</div>
+        <div class="row"><button class="btn primary" id="markBtn">Marcar linha <span id="markIdx">1</span></button><button class="btn sm" id="markUndo">Desfazer</button><button class="btn sm" id="markClear">Limpar marcações</button></div>
+        <div class="small" id="markInfo" style="margin-top:6px"></div>
+      </details>
+    </div>
+    <div class="card"><h2>Versões salvas</h2><div class="list" id="versions"></div></div>
+  </section>
+
+  <!-- ============ PALCO 4+1 ============ -->
+  <section class="view" id="v-palco">
+    <div id="stageWrap" class="stack">
+      <div class="row">
+        <button class="btn primary" id="stFull">Tela cheia</button>
+        <button class="btn" id="stPublic">Abrir tela do público</button>
+        <button class="btn" id="stPublic2" title="Abre direto no 2º monitor (Chrome/Edge no PC)">Projetar no 2º monitor</button>
+        <button class="btn" id="stReturn">Abrir retorno</button>
+        <button class="btn" id="stBlack">Escurecer público</button>
+        <label class="chk"><input type="checkbox" id="stLock"> Travar controles</label>
+        <label class="chk"><input type="checkbox" id="stAuto"> Avanço automático</label>
+      </div>
+      <div class="stage" id="stage"><span class="tag" id="stTag"></span><span class="pos" id="stPos"></span><div class="sheet" id="stSheet"></div></div>
+      <div class="stagectl"><button class="btn big" id="stPrev">◀ Anterior</button><button class="btn big" id="stExit">Sair</button><button class="btn big primary" id="stNext">Próximo ▶</button></div>
+      <div class="small muted">Teclado e pedal: → / PageDown / espaço avançam · ← / PageUp voltam · B escurece · F tela cheia. No celular: toque à direita avança, à esquerda volta, ou deslize.</div>
+    </div>
+  </section>
+
+  <!-- ============ BANDA VIRTUAL ============ -->
+  <section class="view" id="v-banda">
+    <div class="card stack">
+      <div class="row">
+        <button class="btn big primary" id="bdPlay" style="min-width:160px">Tocar banda</button>
+        <button class="btn" id="bdFill">Virada</button><button class="btn" id="bdEnd">Finalizar</button>
+        <div class="beatdots" id="beatDots"></div><span class="small muted" id="bdBar"></span>
+      </div>
+      <div class="row">
+        <label class="field"><span>BPM</span><input type="number" id="bdBpm" min="40" max="220" value="76"></label>
+        <button class="btn sm" id="bdTap" style="align-self:flex-end">TAP</button>
+        <label class="field"><span>Compasso</span><select id="bdMeter"><option>4/4</option><option>3/4</option><option>2/4</option><option>6/8</option></select></label>
+        <label class="field"><span>Estilo</span><select id="bdStyle"></select></label>
+        <label class="field"><span>Acordes vêm de</span><select id="bdSource"><option value="song">Música aberta (linha do palco / áudio)</option><option value="prog">Sequência do detector</option><option value="key">Só o tom (fixo)</option></select></label>
+        <label class="field"><span>Tom</span><select id="bdKey"></select></label>
+      </div>
+      <div class="row"><span class="label">Parte</span><div class="tabs" id="bdSections"></div></div>
+      <div class="row">
+        <label class="field grow"><span>Intensidade</span><input type="range" id="bdInt" min="0" max="1" step="0.05" value="0.7"></label>
+        <label class="field grow"><span>Humanização</span><input type="range" id="bdHum" min="0" max="1" step="0.05" value="0.3"></label>
+      </div>
+    </div>
+    <div class="grid2">
+      <div class="card stack">
+        <h2>Instrumentos</h2>
+        <div class="row"><label class="chk"><input type="checkbox" id="bdDrums" checked> Bateria</label><label class="chk"><input type="checkbox" id="bdPad" checked> Pad</label><label class="chk"><input type="checkbox" id="bdBass"> Baixo</label><label class="chk"><input type="checkbox" id="bdKeys"> Teclado</label></div>
+        <div class="row">
+          <label class="field"><span>Timbre do pad</span><select id="bdPadT"></select></label>
+          <label class="field"><span>Pad</span><select id="bdPadMode"><option value="chord">Segue os acordes</option><option value="fixed">Tom fixo</option></select></label>
+          <label class="chk"><input type="checkbox" id="bdPadThird" checked> Com terça</label>
+        </div>
+        <h2 style="margin-top:6px">Metrônomo</h2>
+        <div class="row"><label class="chk"><input type="checkbox" id="bdClick"> Click</label>
+          <label class="field"><span>Subdivisão</span><select id="bdSub"><option value="1">Semínima</option><option value="2">Colcheia</option><option value="3">Tercina</option><option value="4">Semicolcheia</option></select></label>
+          <label class="chk"><input type="checkbox" id="bdCount" checked> Contagem inicial</label></div>
+      </div>
+      <div class="card stack">
+        <h2>Voz guia (só para os músicos)</h2>
+        <label class="chk"><input type="checkbox" id="bdVoice" checked> Ativar voz guia</label>
+        <div class="row" id="voiceBtns"></div>
+        <div class="small muted">Voz do sistema sai na saída padrão. Para mandar só ao fone/retorno, grave sua voz em cada comando (botão ●).</div>
+      </div>
+    </div>
+    <div class="card stack">
+      <div class="row between"><h2>Sequenciador da bateria</h2><div class="row"><button class="btn sm" id="seqReset">Voltar ao estilo</button></div></div>
+      <div class="seq" id="seqGrid"></div>
+    </div>
+  </section>
+
+  <!-- ============ REPERTÓRIO ============ -->
+  <section class="view" id="v-rep">
+    <div class="grid2">
+      <div class="card stack">
+        <div class="row between"><h2>Músicas</h2><button class="btn sm primary" id="repNew">+ Nova</button></div>
+        <input type="search" id="repSearch" placeholder="Buscar por nome, artista ou letra">
+        <div class="list" id="repList"></div>
+      </div>
+      <div class="card stack">
+        <div class="row between"><h2>Listas de apresentação</h2><button class="btn sm" id="slNew">+ Nova lista</button></div>
+        <select id="slSelect"></select>
+        <div class="list" id="slList"></div>
+        <div class="row"><button class="btn sm" id="slAdd">Adicionar música aberta</button><button class="btn sm" id="slPlay">Abrir 1ª no palco</button><button class="btn sm" id="slDel">Apagar lista</button></div>
+      </div>
+    </div>
+    <div class="card stack">
+      <h2>Backup</h2>
+      <div class="row"><button class="btn" id="bkExport">Exportar backup (JSON)</button><button class="btn" id="bkImport">Importar backup</button><input type="file" id="fileBackup" accept=".json,application/json" hidden><span class="small muted" id="bkInfo"></span></div>
+    </div>
+  </section>
+
+  <!-- ============ MAIS ============ -->
+  <section class="view" id="v-mais">
+    <div class="tabs" id="maisTabs">
+      <button class="btn sm sel" data-sub="mixer">Mixer</button><button class="btn sm" data-sub="rede">Conectar aparelhos</button>
+      <button class="btn sm" data-sub="acordes">Biblioteca de acordes</button><button class="btn sm" data-sub="config">Configurações</button><button class="btn sm" data-sub="diag">Diagnóstico</button>
+    </div>
+    <div data-subview="mixer" class="stack">
+      <div class="card stack"><h2>Mixer</h2><div class="mixer" id="mixer"></div>
+        <div class="small muted">Marque P (principal/público), R1 e R2 (retornos) em cada canal. Click e voz guia saem só nos retornos por padrão.</div></div>
+      <div class="card stack"><h2>Saídas de áudio</h2><div class="stack" id="outputs"></div>
+        <div class="small muted">Retorno individual por saída física (fone, placa de som, interface). Precisa de Chrome ou Edge no PC. Não envia áudio pelo Wi-Fi.</div></div>
+    </div>
+    <div data-subview="rede" class="stack" hidden>
+      <div class="card stack" id="netCard"></div>
+    </div>
+    <div data-subview="acordes" class="stack" hidden>
+      <div class="card stack">
+        <div class="row"><input type="text" id="libChord" placeholder="Ex.: G, F#m7, C/E" style="max-width:220px"><select id="libInst" style="max-width:220px"></select><button class="btn sm" id="libSong">Acordes da música aberta</button></div>
+        <div id="libOut" class="stack"></div>
+      </div>
+    </div>
+    <div data-subview="config" class="stack" hidden>
+      <div class="grid2">
+        <div class="card stack"><h2>Palco</h2>
+          <label class="field"><span>Linhas por bloco</span><input type="number" id="cfLines" min="2" max="8" value="4"></label>
+          <label class="field"><span>Tamanho da fonte do palco (0 = automático)</span><input type="number" id="cfStageSize" min="0" max="120" value="0"></label>
+          <label class="field"><span>Cor do texto do palco</span><input type="color" id="cfStageFg" value="#ffffff"></label>
+          <label class="chk"><input type="checkbox" id="cfStageChords" checked> Mostrar cifras no palco</label>
+          <label class="chk"><input type="checkbox" id="cfWake" checked> Manter tela ligada no palco</label>
+        </div>
+        <div class="card stack"><h2>Tela do público</h2>
+          <label class="field"><span>Fundo</span><input type="color" id="cfPubBg" value="#000000"></label>
+          <label class="field"><span>Cor do texto</span><input type="color" id="cfPubFg" value="#ffffff"></label>
+          <label class="field"><span>Fonte</span><select id="cfPubFont"><option>Inter</option><option>Space Grotesk</option><option>Georgia</option><option>Arial</option></select></label>
+          <label class="field"><span>Alinhamento</span><select id="cfPubAlign"><option value="center">Centro</option><option value="left">Esquerda</option></select></label>
+          <label class="field"><span>Tamanho (% da altura)</span><input type="range" id="cfPubSize" min="3" max="12" step="0.5" value="6"></label>
+          <div class="row"><button class="btn sm" id="cfPubImg">Imagem de fundo</button><button class="btn sm" id="cfPubLogo">Logotipo</button><button class="btn sm" id="cfPubClear">Remover imagens</button><input type="file" id="filePubImg" accept="image/*" hidden><input type="file" id="filePubLogo" accept="image/*" hidden></div>
+          <label class="chk"><input type="checkbox" id="cfPubFade" checked> Transição suave</label>
+        </div>
+        <div class="card stack"><h2>Áudio</h2>
+          <label class="field"><span>Entrada (microfone / interface)</span><select id="cfMic"><option value="">Padrão do sistema</option></select></label>
+          <div class="small muted">A permissão do microfone libera os nomes dos aparelhos.</div>
+        </div>
+        <div class="card stack"><h2>Aplicativo</h2>
+          <button class="btn" id="cfInstall">Instalar aplicativo</button>
+          <button class="btn" id="cfPersist">Proteger dados contra limpeza do navegador</button>
+          <div class="small muted" id="cfInfo"></div>
+        </div>
+      </div>
+    </div>
+    <div data-subview="diag" class="stack" hidden><div class="card stack"><h2>Diagnóstico pré-palco</h2><button class="btn primary" id="diagRun">Rodar diagnóstico</button><div class="list" id="diagOut"></div></div></div>
+  </section>
+</div>
+
+<nav class="bottom"><div class="in" id="nav">
+  <button data-view="tom" class="active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/></svg>Tom</button>
+  <button data-view="musica"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>Música</button>
+  <button data-view="palco"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>Palco</button>
+  <button data-view="banda"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><ellipse cx="12" cy="8" rx="9" ry="3"/><path d="M3 8v6c0 1.7 4 3 9 3s9-1.3 9-3V8"/></svg>Banda</button>
+  <button data-view="rep"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Repertório</button>
+  <button data-view="mais"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>Mais</button>
+</div></nav>
+
+<!-- telas secundárias: público / retorno / cantor / músico / controle remoto -->
+<div id="screen"><div class="scr-status" id="scrStatus"></div><div class="content" id="scrContent"></div><div class="blackout"></div></div>
+
+<script src="js/chordcore.js"></script>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

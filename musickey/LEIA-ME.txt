@@ -1,0 +1,43 @@
+MUSICKEY PRO STUDIO v2.0
+========================
+
+App musical para cantar, tocar e projetar: tom pela voz, acordes da música inteira,
+cifra, palco 4+1, projeção, banda virtual, mixer e rede local (como o Holyrics).
+
+1) USAR SÓ NO CELULAR OU NO PC (sem rede)
+   Abra o link https do app no Chrome/Edge/Safari e instale:
+   - Android/PC: menu ⋮ → Instalar app
+   - iPhone: Compartilhar → Adicionar à Tela de Início
+   Funciona offline depois da primeira abertura.
+
+2) PC CENTRAL + CELULARES SINCRONIZADOS (Wi-Fi)
+   a) Instale o Node.js (grátis): https://nodejs.org (versão LTS).
+   b) Descompacte esta pasta no PC e dê dois cliques em INICIAR-SERVIDOR.bat.
+   c) Se o Windows perguntar, permita o acesso em "Rede privada".
+   d) O navegador abre http://localhost:8080 (a central, com microfone).
+   e) No app: Mais → Conectar aparelhos. Cada celular lê o QR do seu papel:
+      Controle remoto · Cantor (letra) · Músico (cifra) · Público (projeção) · Retorno.
+   O código da sessão protege a entrada. Só o PC pode ser a central.
+
+3) PROJETOR / TV
+   Palco → "Projetar no 2º monitor" (Chrome/Edge no PC) ou "Abrir tela do público".
+   Na tela do público: duplo clique = tela cheia · botão direito = vídeo/imagem de fundo.
+
+4) PEDAL
+   Pedais Bluetooth/USB de virar página funcionam: → / PageDown / espaço avançam,
+   ← / PageUp voltam. Tecla B escurece o público. F = tela cheia.
+
+5) RETORNO INDIVIDUAL DE ÁUDIO
+   Mais → Mixer: escolha o que vai para Principal (P), Retorno 1 (R1) e Retorno 2 (R2).
+   Em "Saídas de áudio", escolha a placa/fone de cada retorno (Chrome/Edge no PC).
+   Click e voz guia vão só para os retornos por padrão.
+   O áudio NÃO é enviado pelo Wi-Fi: cada retorno precisa de uma saída física.
+
+LIMITES CONHECIDOS
+- Acordes de MP3/WAV com banda: a detecção pode errar; revise na lista de trechos.
+  Em testes com música sintética acertou 97–100%; em gravação real o acerto é menor.
+- Acordes ao vivo pelo microfone: experimental; não prevê acordes futuros.
+- Voz guia do sistema sai na saída padrão. Para ir só ao retorno, grave sua voz (●).
+- Backup (JSON) não inclui os arquivos de áudio.
+
+Arquivos: index.html, css/, js/, icons/, sw.js, manifest.webmanifest, server/server.js
