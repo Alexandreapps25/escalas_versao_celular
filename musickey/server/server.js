@@ -12,7 +12,8 @@ const PORT = +arg('port', process.env.PORT || 8080);
 let CODE = String(arg('code', 'auto'));
 if (CODE === 'auto') CODE = String(1000 + crypto.randomInt(9000));
 if (CODE === 'off') CODE = '';
-const ROOT = path.resolve(__dirname, '..');
+// no .exe (pkg) os arquivos do app ficam ao lado do executável
+const ROOT = process.pkg ? path.dirname(process.execPath) : path.resolve(__dirname, '..');
 const ROLES = new Set(['master', 'remote', 'singer', 'musician', 'public', 'return']);
 const MAX_MSG = 8 * 1024 * 1024;
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json',
@@ -117,5 +118,5 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`  Código da sessão:                 ${CODE || '(sem código)'}`);
   console.log(`\n  No app: Mais → Conectar aparelhos mostra os QR Codes.`);
   console.log(`  Se o Windows perguntar, permita o acesso na "Rede privada".\n  Para parar: feche esta janela ou aperte Ctrl+C.\n`);
-  if (arg('open', false)) exec((process.platform === 'win32' ? 'start "" ' : process.platform === 'darwin' ? 'open ' : 'xdg-open ') + `http://localhost:${PORT}`);
+  if (arg('open', false) || process.pkg) exec((process.platform === 'win32' ? 'start "" ' : process.platform === 'darwin' ? 'open ' : 'xdg-open ') + `http://localhost:${PORT}`);
 });
