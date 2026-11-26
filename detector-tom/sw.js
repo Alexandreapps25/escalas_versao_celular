@@ -1,5 +1,5 @@
-// Detector de Tom — service worker v3.1
-const CACHE = 'detector-tom-v3.1';
+// Detector de Tom — service worker v4
+const CACHE = 'detector-tom-v4';
 const FILES = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-maskable-512.png', './apple-touch-icon.png'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));
