@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#0b0d10">
-<title>Detector de Tom — v4.1</title>
+<title>Detector de Tom — v4.2</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -94,7 +94,7 @@
 <div class="app" id="app">
 
   <header>
-    <div class="brand"><b>Detector de Tom</b><small>v4.1 · ministério de louvor</small></div>
+    <div class="brand"><b>Detector de Tom</b><small>v4.2 · ministério de louvor</small></div>
     <div class="pill"><i></i><span id="pillText">Pausado</span></div>
   </header>
 
@@ -160,7 +160,7 @@
 
 <!-- ===== MOTOR (sem DOM) ===== -->
 <script id="engine">
-  // Detector de Tom — motor v4.1
+  // Detector de Tom — motor v4.2
   const NOTES = ["C","C#","D","Eb","E","F","F#","G","Ab","A","Bb","B"];
   const NOTES_PT = ["Dó","Dó#","Ré","Mi♭","Mi","Fá","Fá#","Sol","Lá♭","Lá","Si♭","Si"];
   // Perfis Albrecht & Shanahan (2013) — melhores para melodia que Krumhansl
@@ -173,11 +173,13 @@
     mpmK: 0.9,            // MPM: primeiro pico >= 90% do maior (anti erro de oitava)
     fMin: 75, fMax: 1050, // extensão vocal
     stableMs: 150,        // nota precisa durar isso para contar
-    phraseGapMs: 280,     // silêncio que fecha uma frase
+    phraseGapMs: 220,     // silêncio que fecha uma frase (respiração)
+    secPerPhrase: 3.5,    // canto emendado: cada 3,5 s de voz conta como 1 frase
     phraseBonus: 1.5,     // peso extra (em segundos) da última nota da frase
     minPhrases: 2,        // mostra o tom após 2 frases...
     minSeconds: 6,        // ...ou 6 s de voz firme
     beta: 28,             // calibração: confiança mostrada = acerto medido
+    confirmConf: 88,      // confiança para confirmar e travar o tom (testado)
     gateFactor: 2,        // gate = piso de ruído × fator (testado: 2 = melhor)
     gateFloorMin: 0.004
   };
@@ -270,8 +272,9 @@
       this.cur = -1; this.curStart = 0; this.curCounted = false;
       this.lastPc = -1; this.silenceStart = 0; this.phraseClosed = true;
       this.notes = 0; this.seconds = 0; this.lastT = 0; this.phrases = 0; this.phraseNotes = 0;
-      this.key = null;
+      this.key = null; this.lock = null;
     }
+    effPhrases() { return Math.max(this.phrases, Math.floor(this.seconds / CFG.secPerPhrase)); }
     // atualiza piso de ruído (segue o mínimo; sobe devagar, desce rápido)
     trackNoise(rms) {
       if (this.noise === null) { this.noise = Math.max(rms, CFG.gateFloorMin); return; }
@@ -327,7 +330,8 @@
     // v4.1 — método híbrido (escala diatônica + perfil + tríade da tônica), testado em 5.000 melodias
     updateKey() {
       const total = this.hist.reduce((a,b)=>a+b,0);
-      if (total <= 0 || (this.phrases < CFG.minPhrases && this.seconds < CFG.minSeconds)) { this.key = null; return; }
+      const phr = this.effPhrases();
+      if (total <= 0 || (phr < CFG.minPhrases && this.seconds < CFG.minSeconds)) { this.key = null; return; }
       const hh = this.hist.map(x => Math.pow(x, 0.75));
       const tot = hh.reduce((a,b)=>a+b,0);
       const res = [];
@@ -342,15 +346,23 @@
         }
       }
       res.sort((a,b) => b.s - a.s);
-      const best = res[0];
+      let best = res[0];
       // confiança calibrada = probabilidade de os ACORDES estarem certos (relativos têm os mesmos acordes)
       const ps = new Array(12).fill(0); let Z = 0;
       for (const k of res) { const e = Math.exp(CFG.beta * (k.s - best.s)); ps[k.scale] += e; Z += e; }
-      const conf = Math.min(99, Math.round(100 * ps[best.scale] / Z));
+      const confOf = sc => Math.min(99, Math.round(100 * ps[sc] / Z));
+      // trava: depois de confirmado, só troca com evidência forte e 2 frases a mais
+      if (this.lock) {
+        const lk = res.find(k => k.root === this.lock.root && k.minor === this.lock.minor);
+        if (best.scale !== this.lock.scale && confOf(best.scale) >= 92 && phr >= this.lock.phrases + 2) this.lock = null;
+        else best = lk;
+      }
+      const conf = confOf(best.scale);
+      if (!this.lock && conf >= CFG.confirmConf && phr >= CFG.minPhrases) this.lock = { root: best.root, minor: best.minor, scale: best.scale, phrases: phr };
       const rel = res.find(k => k.scale === best.scale && k.minor !== best.minor);
       const alt = res.find(k => k.scale !== best.scale);
-      this.key = { root: best.root, minor: best.minor, conf, alt, rel,
-                   relGap: rel ? best.s - rel.s : 1, notes: this.notes, seconds: this.seconds, phrases: this.phrases };
+      this.key = { root: best.root, minor: best.minor, conf, alt, rel, locked: !!this.lock,
+                   relGap: rel ? best.s - rel.s : 1, notes: this.notes, seconds: this.seconds, phrases: phr };
     }
   }
 
@@ -454,8 +466,8 @@
     if (!k) {
       $('keyName').textContent = eng.seconds > 0 ? 'Analisando…' : '—';
       $('keySym').textContent = '';
-      $('confBar').style.width = Math.min(30, eng.phrases * 15 + eng.seconds * 2) + '%';
-      $('confText').textContent = eng.seconds > 0 ? `Continue cantando… ${eng.phrases} de 2 frases` : 'Cante 2 ou 3 frases da música';
+      $('confBar').style.width = Math.min(30, eng.effPhrases() * 15) + '%';
+      $('confText').textContent = eng.seconds > 0 ? `Continue cantando… ${eng.effPhrases()} de 2 frases` : 'Cante 2 ou 3 frases da música';
       $('altText').textContent = '';
       badge.textContent = 'Aguardando'; badge.className = 'badge';
       renderHarmony(null); return;
@@ -464,7 +476,7 @@
     $('keySym').textContent = keySym(k);
     $('confBar').style.width = k.conf + '%';
     $('confText').textContent = `Confiança ${k.conf}% · ${k.phrases} frase${k.phrases===1?'':'s'} · ${k.notes} notas`;
-    const sure = k.conf >= 85 && k.phrases >= 2;
+    const sure = k.locked;
     badge.textContent = sure ? 'Confirmado' : 'Provável'; badge.className = sure ? 'badge ok' : 'badge';
     let alt = '';
     if (k.rel && k.relGap < 0.03) alt = `Pode ser ${keyLabel(k.rel)} (mesmos acordes). `;
