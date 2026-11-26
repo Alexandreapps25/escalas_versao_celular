@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#0b0d10">
-<title>Detector de Tom — v4</title>
+<title>Detector de Tom — v4.1</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -94,7 +94,7 @@
 <div class="app" id="app">
 
   <header>
-    <div class="brand"><b>Detector de Tom</b><small>v4 · ministério de louvor</small></div>
+    <div class="brand"><b>Detector de Tom</b><small>v4.1 · ministério de louvor</small></div>
     <div class="pill"><i></i><span id="pillText">Pausado</span></div>
   </header>
 
@@ -114,7 +114,7 @@
       <span class="sym" id="keySym"></span>
     </div>
     <div class="bar"><div id="confBar"></div></div>
-    <span class="conf" id="confText">Cante um trecho de 10 a 20 segundos</span>
+    <span class="conf" id="confText">Cante 2 ou 3 frases da música</span>
     <span class="alt" id="altText"></span>
   </section>
 
@@ -160,12 +160,13 @@
 
 <!-- ===== MOTOR (sem DOM) ===== -->
 <script id="engine">
-  // Detector de Tom — motor v4
+  // Detector de Tom — motor v4.1
   const NOTES = ["C","C#","D","Eb","E","F","F#","G","Ab","A","Bb","B"];
   const NOTES_PT = ["Dó","Dó#","Ré","Mi♭","Mi","Fá","Fá#","Sol","Lá♭","Lá","Si♭","Si"];
   // Perfis Albrecht & Shanahan (2013) — melhores para melodia que Krumhansl
   const PROF_MAJ = [0.238,0.006,0.111,0.006,0.137,0.094,0.016,0.214,0.009,0.080,0.008,0.081];
   const PROF_MIN = [0.220,0.006,0.104,0.123,0.019,0.103,0.012,0.214,0.062,0.022,0.061,0.052];
+  const MAJ_STEPS = [0,2,4,5,7,9,11];
 
   const CFG = {
     clarityMin: 0.85,     // MPM: rejeita som sem nota definida
@@ -173,8 +174,10 @@
     fMin: 75, fMax: 1050, // extensão vocal
     stableMs: 150,        // nota precisa durar isso para contar
     phraseGapMs: 280,     // silêncio que fecha uma frase
-    phraseBonus: 0.6,     // peso extra (em segundos) da última nota da frase
-    minSeconds: 4,        // segundos de nota firme antes de mostrar tom
+    phraseBonus: 1.5,     // peso extra (em segundos) da última nota da frase
+    minPhrases: 2,        // mostra o tom após 2 frases...
+    minSeconds: 6,        // ...ou 6 s de voz firme
+    beta: 28,             // calibração: confiança mostrada = acerto medido
     gateFactor: 2,        // gate = piso de ruído × fator (testado: 2 = melhor)
     gateFloorMin: 0.004
   };
@@ -266,7 +269,7 @@
       this.midiWin = [];
       this.cur = -1; this.curStart = 0; this.curCounted = false;
       this.lastPc = -1; this.silenceStart = 0; this.phraseClosed = true;
-      this.notes = 0; this.seconds = 0; this.lastT = 0;
+      this.notes = 0; this.seconds = 0; this.lastT = 0; this.phrases = 0; this.phraseNotes = 0;
       this.key = null;
     }
     // atualiza piso de ruído (segue o mínimo; sobe devagar, desce rápido)
@@ -297,6 +300,8 @@
         if (!this.phraseClosed && this.lastPc >= 0 && now - this.silenceStart >= CFG.phraseGapMs) {
           this.hist[this.lastPc] += CFG.phraseBonus; // última nota da frase costuma ser a tônica
           this.phraseClosed = true;
+          if (this.phraseNotes >= 3) this.phrases++;
+          this.phraseNotes = 0;
           this.updateKey();
         }
         return { note: null };
@@ -310,7 +315,7 @@
 
       if (pc !== this.cur) { this.cur = pc; this.curStart = now; this.curCounted = false; }
       else if (now - this.curStart >= CFG.stableMs) {
-        if (!this.curCounted) { this.notes++; this.curCounted = true; }
+        if (!this.curCounted) { this.notes++; this.phraseNotes++; this.curCounted = true; }
         const w = dt * (0.5 + p.clarity * 0.5);
         this.hist[pc] += w; this.seconds += dt;
         this.lastPc = pc;
@@ -319,28 +324,33 @@
       return { note: { pc, midi, cents, freq: p.freq } };
     }
 
+    // v4.1 — método híbrido (escala diatônica + perfil + tríade da tônica), testado em 5.000 melodias
     updateKey() {
       const total = this.hist.reduce((a,b)=>a+b,0);
-      if (this.seconds < CFG.minSeconds || total <= 0) { this.key = null; return; }
+      if (total <= 0 || (this.phrases < CFG.minPhrases && this.seconds < CFG.minSeconds)) { this.key = null; return; }
+      const hh = this.hist.map(x => Math.pow(x, 0.75));
+      const tot = hh.reduce((a,b)=>a+b,0);
       const res = [];
       for (let r = 0; r < 12; r++) {
-        const rot = i => this.hist[(r + i) % 12];
-        const v = Array.from({length:12}, (_,i) => rot(i));
-        res.push({ root: r, minor: false, corr: pearson(v, PROF_MAJ) });
-        res.push({ root: r, minor: true,  corr: pearson(v, PROF_MIN) });
+        const v = Array.from({length:12}, (_,i) => hh[(r + i) % 12]);
+        for (const minor of [false, true]) {
+          const scale = minor ? (r + 3) % 12 : r;           // escala = raiz do relativo maior
+          let inScale = 0; for (const d of MAJ_STEPS) inScale += hh[(scale + d) % 12];
+          const triad = (minor ? [0,3,7] : [0,4,7]).reduce((s,d) => s + hh[(r + d) % 12], 0);
+          const corr = pearson(v, minor ? PROF_MIN : PROF_MAJ);
+          res.push({ root: r, minor, scale, s: inScale / tot + 0.25 * corr + 0.2 * triad / tot });
+        }
       }
-      res.sort((a,b) => b.corr - a.corr);
+      res.sort((a,b) => b.s - a.s);
       const best = res[0];
-      const relRoot = best.minor ? (best.root + 3) % 12 : (best.root + 9) % 12;
-      const alt = res.find(k => !(k.root === relRoot && k.minor !== best.minor) && k !== best) || res[1];
-      const rel = res.find(k => k.root === relRoot && k.minor !== best.minor);
-      const margin = best.corr - alt.corr;
-      // confiança: correlação + separação do 2º tom não-relativo + quantidade de canto
-      const amount = Math.min(1, this.seconds / 20);
-      const conf = Math.round(100 * Math.max(0, Math.min(0.99,
-        0.45 * Math.max(0, best.corr) + 0.35 * Math.min(1, margin / 0.25) + 0.2 * amount)));
-      this.key = { root: best.root, minor: best.minor, corr: best.corr, conf, alt, rel,
-                   relGap: rel ? best.corr - rel.corr : 1, notes: this.notes, seconds: this.seconds };
+      // confiança calibrada = probabilidade de os ACORDES estarem certos (relativos têm os mesmos acordes)
+      const ps = new Array(12).fill(0); let Z = 0;
+      for (const k of res) { const e = Math.exp(CFG.beta * (k.s - best.s)); ps[k.scale] += e; Z += e; }
+      const conf = Math.min(99, Math.round(100 * ps[best.scale] / Z));
+      const rel = res.find(k => k.scale === best.scale && k.minor !== best.minor);
+      const alt = res.find(k => k.scale !== best.scale);
+      this.key = { root: best.root, minor: best.minor, conf, alt, rel,
+                   relGap: rel ? best.s - rel.s : 1, notes: this.notes, seconds: this.seconds, phrases: this.phrases };
     }
   }
 
@@ -444,8 +454,8 @@
     if (!k) {
       $('keyName').textContent = eng.seconds > 0 ? 'Analisando…' : '—';
       $('keySym').textContent = '';
-      $('confBar').style.width = Math.min(100, eng.seconds / CFG.minSeconds * 100) * 0.3 + '%';
-      $('confText').textContent = eng.seconds > 0 ? `Continue cantando… ${eng.notes} notas` : 'Cante um trecho de 10 a 20 segundos';
+      $('confBar').style.width = Math.min(30, eng.phrases * 15 + eng.seconds * 2) + '%';
+      $('confText').textContent = eng.seconds > 0 ? `Continue cantando… ${eng.phrases} de 2 frases` : 'Cante 2 ou 3 frases da música';
       $('altText').textContent = '';
       badge.textContent = 'Aguardando'; badge.className = 'badge';
       renderHarmony(null); return;
@@ -453,12 +463,12 @@
     $('keyName').textContent = keyLabel(k);
     $('keySym').textContent = keySym(k);
     $('confBar').style.width = k.conf + '%';
-    $('confText').textContent = `Confiança ${k.conf}% · ${k.notes} notas · ${Math.round(k.seconds)}s de voz`;
-    const sure = k.conf >= 70 && k.seconds >= 10;
+    $('confText').textContent = `Confiança ${k.conf}% · ${k.phrases} frase${k.phrases===1?'':'s'} · ${k.notes} notas`;
+    const sure = k.conf >= 85 && k.phrases >= 2;
     badge.textContent = sure ? 'Confirmado' : 'Provável'; badge.className = sure ? 'badge ok' : 'badge';
     let alt = '';
-    if (k.rel && k.relGap < 0.08) alt = `Pode ser ${keyLabel(k.rel)} (mesmos acordes, outro centro). `;
-    if (!sure && k.alt) alt += `2ª opção: ${keyLabel(k.alt)}.`;
+    if (k.rel && k.relGap < 0.03) alt = `Pode ser ${keyLabel(k.rel)} (mesmos acordes). `;
+    if (!sure && k.alt) alt += `2ª opção: ${keyLabel(k.alt)}. Cante mais uma frase.`;
     $('altText').textContent = alt;
     const id = keySym(k);
     if (id !== lastKeyId) { lastKeyId = id; selProg = 0; renderHarmony(harmony(k.root, k.minor)); }
